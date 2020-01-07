@@ -1,2 +1,2 @@
-# clinical-data-distribution
-Project management and design artifacts for Clinical Data Distribution
+# clinical-data-flow
+Project management and design artifacts for Clinical Data Flow
