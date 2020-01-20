@@ -18,6 +18,6 @@ Project management and design artifacts for [Clinical Data Flow](https://d3b.io/
 
 - [Data Ingest Library](https://github.com/kids-first/kf-lib-data-ingest)
 - RedCap to FHIR (FHIR Cap) - TBD
-- [Warehouse](https://github.com/kids-first/kf-api-fhir-staging/tree/refactor/warehouse)
+- [Warehouse](warehouse/README.md)
 - FHIR Staging Service - TBD
 - [FHIR Data Service](https://github.com/kids-first/kf-api-fhir-service)
