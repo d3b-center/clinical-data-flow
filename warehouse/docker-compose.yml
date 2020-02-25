@@ -7,8 +7,6 @@ services:
     image: ${MB_IMAGE}
     ports:
       - "${MB_HOSTPORT}:${MB_PORT}"
-    volumes:
-      - "${MB_DATA}:/metabase_data"
     depends_on:
       - postgres_warehouse
     links:
@@ -23,4 +21,4 @@ services:
       - "${PGHOSTPORT}:${PGPORT}"
     volumes:
       - ./init_postgresdb.sh:/docker-entrypoint-initdb.d/init_postgresdb.sh
-      - "${WAREHOUSE_DATA}:/data"
+      - "${WAREHOUSE_DATA}:/var/lib/postgresql/data"
