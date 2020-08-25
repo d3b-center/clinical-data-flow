@@ -1,0 +1,2 @@
+git+https://github.com/root-11/graph-theory.git
+git+https://github.com/kids-first/kf-lib-data-ingest.git@latest-release
