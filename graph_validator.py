@@ -1,6 +1,6 @@
 import itertools
 from collections import defaultdict
-from pprint import pprint
+
 from graph import Graph  # https://github.com/root-11/graph-theory
 
 from relations import HIERARCHY, REVERSE_TESTS, TESTS
@@ -113,6 +113,10 @@ def build_graph(dict_of_dataframes):
         g.add_edge(a, b)
 
     return g
+
+
+def report_type_counts(g):
+    return {c: len(g.nodes(to_node=c)) for c in reversed(HIERARCHY.nodes())}
 
 
 def validate_graph(g, dict_of_dataframes):

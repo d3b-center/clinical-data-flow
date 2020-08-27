@@ -2,7 +2,13 @@ import glob
 
 from kf_lib_data_ingest.common.io import read_df
 
-from graph_validator import HIERARCHY, NA, build_graph, validate_graph
+from graph_validator import (
+    HIERARCHY,
+    NA,
+    build_graph,
+    report_type_counts,
+    validate_graph,
+)
 
 for dir in sorted(glob.glob("DATASET*")):
     df_dict = {
@@ -23,6 +29,14 @@ for dir in sorted(glob.glob("DATASET*")):
             print(v)
             print()
         graph = build_graph(df_dict)
+
+        print("NODE TYPE COUNTS:")
+        counts = report_type_counts(graph)
+        colwidth = len(max(counts, key=len))
+        for k, v in counts.items():
+            print(f"\t{k:<{colwidth}} : {v}")
+
+        print()
 
         results = []
         for m in validate_graph(graph, df_dict):
