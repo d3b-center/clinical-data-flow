@@ -2,6 +2,34 @@
 
 `python3 test_validator.py`
 
+## Explicit Connections (always)
+
+Given exclusive cardinality relationships, we can infer that row-adjacency for
+columns that have a direct hierarchical relationship should be linked.
+
+e.g. given (C to-many B) and (B to-many A), we can say that:
+
+| C | B | A | D |
+|---|---|---|---|
+| C1|B1 | A1| D1|
+
+produces relationship (C1) <--- (B1) <--- (A1) but either _nothing_ for (D1) or
+_everything_ for (D1)
+
+## Implied Connections (optional)
+
+Given exclusive cardinality relationships, we can infer that attachments
+outside of the hierarchy are misplaced and should be propagated.
+
+e.g. given (C to-many B) and (B to-many A), we can recover the following by
+moving edge attachments to their place in the hierarchy.
+
+* (A -> B) + (A -> C)  ==>  (A -> B -> C)
+* (A -> C) + (B -> C)  ==>  (A -> B -> C)
+
+
+!["Visual Explanation of Implied Connections"](implied_connections.png)
+
 CURRENT RESULTS:
 
 ## DATASET1
