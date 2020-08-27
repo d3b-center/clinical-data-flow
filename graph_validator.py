@@ -8,7 +8,7 @@ from relations import HIERARCHY, REVERSE_TESTS, TESTS
 NA = ""
 
 
-def build_graph(dict_of_dataframes):
+def build_graph(dict_of_dataframes, implicit=True):
     g = Graph()
     edges = set()
 
@@ -27,9 +27,9 @@ def build_graph(dict_of_dataframes):
 
     remaining_edges = set()
     for a, b in edges:
-        if b[0] in HIERARCHY.nodes(from_node=a[0]):
+        if b[0] in HIERARCHY.nodes(a[0]):
             g.add_edge(a, b)
-        elif a[0] in HIERARCHY.nodes(from_node=b[0]):
+        elif a[0] in HIERARCHY.nodes(b[0]):
             g.add_edge(b, a)
         else:
             if HIERARCHY.is_connected(a[0], b[0]):
@@ -37,79 +37,80 @@ def build_graph(dict_of_dataframes):
             else:
                 remaining_edges.add((b, a))
 
-    ########################################################################
-    ######## Code beyond here is for indirectly implied connections ########
-    ########################################################################
-
     def prune_unneeded(edges):
-        # Prune remaining edges: (A -> B) + (B -> C) doesn't also need (A -> C)
+        # (A -> B) + (B -> C) doesn't also need (A -> C)
         g.is_connected.cache_clear()
         return [e for e in edges if not g.is_connected(e[0], e[1])]
 
     edges = prune_unneeded(remaining_edges)
 
-    ######## (A -> C) + (B -> C) should become (A -> B -> C) ########
+    if implicit:
+        ######################################################################
+        ########  Code in here is for indirectly implied connections  ########
+        ######################################################################
 
-    def acbc_abc(edges):
-        new_edges = set()
-        for e in edges:
-            a, b = e
-            new_dests = [
-                n
-                for n in g.nodes(to_node=b)
-                if HIERARCHY.is_connected(a[0], n[0])
-            ]
-            if new_dests:
-                for n in new_dests:
-                    if HIERARCHY.edge(a[0], n[0]):
-                        g.add_edge(a, n)
-                    else:
-                        new_edges.add((a, n))
-            else:
-                new_edges.add(e)
-        return new_edges
+        ######## (A -> C) + (B -> C) should become (A -> B -> C) ########
 
-    ######## (A -> C) + (A -> B) should actually be (A -> B -> C) ########
+        def acbc_abc(edges):
+            new_edges = set()
+            for e in edges:
+                a, b = e
+                new_dests = [
+                    n
+                    for n in g.nodes(to_node=b)
+                    if HIERARCHY.is_connected(a[0], n[0])
+                ]
+                if new_dests:
+                    for n in new_dests:
+                        if HIERARCHY.edge(a[0], n[0]):
+                            g.add_edge(a, n)
+                        else:
+                            new_edges.add((a, n))
+                else:
+                    new_edges.add(e)
+            return new_edges
 
-    def acab_abc(edges):
-        new_edges = set()
-        for e in edges:
-            a, b = e
-            new_dests = [
-                n
-                for n in g.nodes(from_node=a)
-                if (n != a[0]) and HIERARCHY.is_connected(n[0], b[0])
-            ]
-            if new_dests:
-                for n in new_dests:
-                    if HIERARCHY.edge(n[0], b[0]):
-                        g.add_edge(n, b)
-                    else:
-                        new_edges.add((n, b))
-            else:
-                new_edges.add(e)
-        return new_edges
+        ######## (A -> C) + (A -> B) should actually be (A -> B -> C) ########
 
-    ###### Shake the graph back and forth ######
+        def acab_abc(edges):
+            new_edges = set()
+            for e in edges:
+                a, b = e
+                new_dests = [
+                    n
+                    for n in g.nodes(a)
+                    if (n != a[0]) and HIERARCHY.is_connected(n[0], b[0])
+                ]
+                if new_dests:
+                    for n in new_dests:
+                        if HIERARCHY.edge(n[0], b[0]):
+                            g.add_edge(n, b)
+                        else:
+                            new_edges.add((n, b))
+                else:
+                    new_edges.add(e)
+            return new_edges
 
-    def try_until_stable(f, edges):
-        prev_edges = edges
-        while True:
-            edges = f(edges)
-            if edges == prev_edges:
-                return edges
+        ###### Shake the graph back and forth ######
+
+        def try_until_stable(f, edges):
             prev_edges = edges
+            while True:
+                edges = f(edges)
+                if edges == prev_edges:
+                    return edges
+                prev_edges = edges
 
-    def shake(edges):
-        edges = acbc_abc(edges)
-        edges = acab_abc(edges)
-        return edges
+        def shake(edges):
+            edges = acbc_abc(edges)
+            edges = acab_abc(edges)
+            return edges
 
-    edges = try_until_stable(shake, edges)
+        edges = prune_unneeded(try_until_stable(shake, edges))
 
-    ######## Add remaining unmovable edges to the graph ########
+    ######## Throw remaining edges into the graph ########
 
-    for a, b in prune_unneeded(edges):
+    for a, b in edges:
         g.add_edge(a, b)
 
     return g
@@ -131,19 +132,8 @@ def validate_graph(g, dict_of_dataframes):
                     found[n].append(f)
         return [f"{k} found in {v}" for k, v in found.items()]
 
-    def test(typeA, typeB, relation):
-        eval_text, eval_func = relation
-        errors = []
-        nodes_to_check = g.nodes(to_node=typeA)
-        for n in nodes_to_check:
-            from_n = n if typeB in HIERARCHY.nodes(from_node=typeA) else None
-            to_n = n if not from_n else None
-            links = [c for c in g.nodes(from_n, to_n) if c[0] == typeB]
-            if not eval_func(len(links)):
-                errors.append({"from": n, "to": links})
-
-        emoji = "⛔" if not nodes_to_check else "❌" if errors else "✅"
-        description = f"Each {typeA} links to {eval_text} 1 {typeB}"
+    def message_from_result(description, valid, errors):
+        emoji = "⛔" if not valid else "❌" if errors else "✅"
         message = {"Test": description, "Result": emoji}
         details = []
         nodes = set()
@@ -156,6 +146,34 @@ def validate_graph(g, dict_of_dataframes):
             message["Locations"] = find_in_files(nodes)
         return message
 
-    m1 = [test(a, b, TESTS[r]) for a, b, r in HIERARCHY.edges()]
-    m2 = [test(b, a, REVERSE_TESTS[r]) for a, b, r in HIERARCHY.edges()]
-    return reversed(list(itertools.chain.from_iterable(zip(m1, m2))))
+    def cardinality(typeA, typeB, relation):
+        # Tests cardinality of connections between typeA and typeB
+        eval_text, eval_func = relation
+        description = f"Each {typeA} links to {eval_text} 1 {typeB}"
+        errors = []
+        nodes_to_check = g.nodes(to_node=typeA)
+        for n in nodes_to_check:
+            from_n = n if typeB in HIERARCHY.nodes(typeA) else None
+            to_n = n if not from_n else None
+            links = [c for c in g.nodes(from_n, to_n) if c[0] == typeB]
+            if not eval_func(len(links)):
+                errors.append({"from": n, "to": links})
+
+        return message_from_result(description, bool(nodes_to_check), errors)
+
+    def gaps():
+        # Tests that A always -> B always -> C and never A -> C without a B
+        description = "All resolved links are direct without gaps in hierarchy"
+        errors = []
+        for n in g.nodes():
+            links = [m for m in g.nodes(n) if n[0] != m]
+            links = [m for m in links if m[0] not in HIERARCHY.nodes(n[0])]
+            if links:
+                errors.append({"from": n, "to": links})
+        return message_from_result(description, bool(g.nodes()), errors)
+
+    m1 = [cardinality(a, b, TESTS[r]) for a, b, r in HIERARCHY.edges()]
+    m2 = [cardinality(b, a, REVERSE_TESTS[r]) for a, b, r in HIERARCHY.edges()]
+    m3 = [gaps()]
+
+    return list(reversed(list(itertools.chain.from_iterable(zip(m1, m2))))) + m3
