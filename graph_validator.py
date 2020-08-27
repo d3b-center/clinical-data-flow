@@ -1,34 +1,31 @@
-from graph import Graph  # https://github.com/root-11/graph-theory
 import itertools
 from collections import defaultdict
+from pprint import pprint
+from graph import Graph  # https://github.com/root-11/graph-theory
+
+from relations import HIERARCHY, REVERSE_TESTS, TESTS
 
 NA = ""
 
-HIERARCHY = Graph()
-HIERARCHY.add_edge("GENOMIC_FILE|URL_LIST", "BIOSPECIMEN|ID")
-HIERARCHY.add_edge("BIOSPECIMEN|ID", "PARTICIPANT|ID")
-HIERARCHY.add_edge("PARTICIPANT|ID", "FAMILY|ID")
-
 
 def build_graph(dict_of_dataframes):
-    edges = set()
     g = Graph()
+    edges = set()
+
+    ######## Add IDs to the graph and record colinear pairs as edges ########
 
     for df in dict_of_dataframes.values():
         for row in df.to_dict(orient="records"):
             nodes = [(k, v) for k, v in row.items() if v != NA]
-            # add all of the ID nodes to the main graph
             for c, n in nodes:
                 g.add_node((c, n))
-                g.add_edge((c, n), c)
-            # put all colinear pairs into the edge graph
+                g.add_edge((c, n), c)  # relate each ID to its type
             for combo in itertools.combinations(nodes, 2):
                 edges.add(combo)
 
-    # Add explicit connections to the main graph from the data.
+    ######## Add explicit (direct hierarchy) connections to the graph ########
 
     remaining_edges = set()
-
     for a, b in edges:
         if b[0] in HIERARCHY.nodes(from_node=a[0]):
             g.add_edge(a, b)
@@ -40,81 +37,79 @@ def build_graph(dict_of_dataframes):
             else:
                 remaining_edges.add((b, a))
 
-    edges = remaining_edges
+    ########################################################################
+    ######## Code beyond here is for indirectly implied connections ########
+    ########################################################################
 
-    # (A -> B) + (B -> C) doesn't also need (A -> C)
+    def prune_unneeded(edges):
+        # Prune remaining edges: (A -> B) + (B -> C) doesn't also need (A -> C)
+        g.is_connected.cache_clear()
+        return [e for e in edges if not g.is_connected(e[0], e[1])]
 
-    remaining_edges = set()
+    edges = prune_unneeded(remaining_edges)
 
-    for e in edges:
-        if not g.is_connected(e[0], e[1]):
-            remaining_edges.add(e)
-
-    edges = remaining_edges
-
-    def try_until_stable(f, edges):
-        prev_num_edges = 0
-        while True:
-            edges = f(edges)
-            if len(edges) == prev_num_edges:
-                return edges
-            prev_num_edges = len(edges)
-
-    def find_attachment(base, stop_type, upwards=False):
-        new_bases = set()
-        def _inner(base, stop_type, new_bases):
-            if upwards:
-                other_nodes = [
-                    n for n in g.nodes(from_node=base) 
-                    if (n != base[0]) and (HIERARCHY.is_connected(n[0], stop_type))
-                ]
-            else:
-                other_nodes = [
-                    n for n in g.nodes(to_node=base) 
-                    if (n != base[0]) and (HIERARCHY.is_connected(stop_type, n[0]))
-                ]
-            if other_nodes:
-                for node in other_nodes:
-                    new_bases.add(_inner(node, stop_type, new_bases))
-            return base
-        _inner(base, stop_type, new_bases)
-        return new_bases
-
-    # (A -> C) + (B -> C) should become (A -> B -> C)
+    ######## (A -> C) + (B -> C) should become (A -> B -> C) ########
 
     def acbc_abc(edges):
-        remaining_edges = set()
-
-        for a, b in edges:
-            new_attachments = find_attachment(b, a[0], upwards=False)
-            if new_attachments:
-                for n in new_attachments:
-                    g.add_edge(a, n)
+        new_edges = set()
+        for e in edges:
+            a, b = e
+            new_dests = [
+                n
+                for n in g.nodes(to_node=b)
+                if HIERARCHY.is_connected(a[0], n[0])
+            ]
+            if new_dests:
+                for n in new_dests:
+                    if HIERARCHY.edge(a[0], n[0]):
+                        g.add_edge(a, n)
+                    else:
+                        new_edges.add((a, n))
             else:
-                remaining_edges.add((a, b))
+                new_edges.add(e)
+        return new_edges
 
-        return remaining_edges
-
-    edges = try_until_stable(acbc_abc, edges)
-
-    # (A -> C) + (A -> B) should actually be (A -> B -> C)
+    ######## (A -> C) + (A -> B) should actually be (A -> B -> C) ########
 
     def acab_abc(edges):
-        remaining_edges = set()
-
-        for a, b in edges:
-            new_attachments = find_attachment(a, b[0], upwards=True)
-            if new_attachments:
-                for n in new_attachments:
-                    g.add_edge(n, b)
+        new_edges = set()
+        for e in edges:
+            a, b = e
+            new_dests = [
+                n
+                for n in g.nodes(from_node=a)
+                if (n != a[0]) and HIERARCHY.is_connected(n[0], b[0])
+            ]
+            if new_dests:
+                for n in new_dests:
+                    if HIERARCHY.edge(n[0], b[0]):
+                        g.add_edge(n, b)
+                    else:
+                        new_edges.add((n, b))
             else:
-                remaining_edges.add((a, b))
+                new_edges.add(e)
+        return new_edges
 
-        return remaining_edges
+    ###### Shake the graph back and forth ######
 
-    edges = try_until_stable(acab_abc, edges)
+    def try_until_stable(f, edges):
+        prev_edges = edges
+        while True:
+            edges = f(edges)
+            if edges == prev_edges:
+                return edges
+            prev_edges = edges
 
-    for a, b in edges:
+    def shake(edges):
+        edges = acbc_abc(edges)
+        edges = acab_abc(edges)
+        return edges
+
+    edges = try_until_stable(shake, edges)
+
+    ######## Add remaining unmovable edges to the graph ########
+
+    for a, b in prune_unneeded(edges):
         g.add_edge(a, b)
 
     return g
@@ -124,18 +119,6 @@ def validate_graph(g, dict_of_dataframes):
     assert isinstance(g, Graph)
     assert len(g.nodes()) > 0
 
-    def test_connections(first_type, second_type, validator):
-        upwards = second_type in HIERARCHY.nodes(from_node=first_type)
-        errors = []
-        for n in g.nodes(to_node=first_type):
-            if upwards:
-                links = [c for c in g.nodes(from_node=n) if c[0] == second_type]
-            else:
-                links = [c for c in g.nodes(to_node=n) if c[0] == second_type]
-            if not validator(len(links)):
-                errors.append({"from": n, "to": links})
-        return errors
-
     def find_in_files(nodes):
         found = defaultdict(list)
         for n in nodes:
@@ -144,42 +127,31 @@ def validate_graph(g, dict_of_dataframes):
                     found[n].append(f)
         return [f"{k} found in {v}" for k, v in found.items()]
 
-    def message_dict(description, errors):
+    def test(typeA, typeB, relation):
+        eval_text, eval_func = relation
+        errors = []
+        nodes_to_check = g.nodes(to_node=typeA)
+        for n in nodes_to_check:
+            from_n = n if typeB in HIERARCHY.nodes(from_node=typeA) else None
+            to_n = n if not from_n else None
+            links = [c for c in g.nodes(from_n, to_n) if c[0] == typeB]
+            if not eval_func(len(links)):
+                errors.append({"from": n, "to": links})
+
+        emoji = "⛔" if not nodes_to_check else "❌" if errors else "✅"
+        description = f"Each {typeA} links to {eval_text} 1 {typeB}"
+        message = {"Test": description, "Result": emoji}
         details = []
         nodes = set()
         for e in errors:
             details.append(f"{e['from']} -> {e['to']}")
             nodes.add(e["from"])
             nodes.update(e["to"])
-        message = {
-            "Test": description,
-            "Result": "❌" if errors else "✅"
-        }
         if errors:
             message["Error Reasons"] = details
             message["Locations"] = find_in_files(nodes)
         return message
 
-    messages = [
-        message_dict(
-            "Each Biospecimen comes from 1 Participant",
-            test_connections("BIOSPECIMEN|ID", "PARTICIPANT|ID", lambda x: x == 1)
-        ),
-        message_dict(
-            "Each Participant has at least 1 Biospecimen",
-            test_connections("PARTICIPANT|ID", "BIOSPECIMEN|ID", lambda x: x >= 1)
-        ),
-        message_dict(
-            "Each Participant has at least 1 Family",
-            test_connections("PARTICIPANT|ID", "FAMILY|ID", lambda x: x >= 1)
-        ),
-        message_dict(
-            "Each Family has at least 1 Participant",
-            test_connections("FAMILY|ID", "PARTICIPANT|ID", lambda x: x >= 1)
-        ),
-        message_dict(
-            "Each Source Genomic File comes from 1 Biospecimen",
-            test_connections("GENOMIC_FILE|URL_LIST", "BIOSPECIMEN|ID", lambda x: x == 1)
-        )
-    ]
-    return messages
+    m1 = [test(a, b, TESTS[r]) for a, b, r in HIERARCHY.edges()]
+    m2 = [test(b, a, REVERSE_TESTS[r]) for a, b, r in HIERARCHY.edges()]
+    return reversed(list(itertools.chain.from_iterable(zip(m1, m2))))

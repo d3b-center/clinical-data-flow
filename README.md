@@ -5,7 +5,9 @@
 CURRENT RESULTS:
 
 ```txt
-=================================== DATASET1 ===================================
+==========================================================================================
+======================================== DATASET1 ========================================
+==========================================================================================
 
 DATASET1/sfp2.csv
   BIOSPECIMEN|ID PARTICIPANT|ID FAMILY|ID
@@ -49,47 +51,77 @@ DATASET1/sp.csv
 1            S10             P6
 2            S11            P10
 
-Test: Each Biospecimen comes from 1 Participant                       Result: ❌
+Test: Each FAMILY|ID links to at least 1 PARTICIPANT|ID                         Result: ❌
+
+Error Reasons:
+	('FAMILY|ID', 'F12') -> []
+
+Locations:
+	('FAMILY|ID', 'F12') found in ['DATASET1/pf.csv']
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test: Each PARTICIPANT|ID links to at least 1 FAMILY|ID                         Result: ❌
+
+Error Reasons:
+	('PARTICIPANT|ID', 'P11') -> []
+
+Locations:
+	('PARTICIPANT|ID', 'P11') found in ['DATASET1/pf.csv']
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test: Each PARTICIPANT|ID links to at least 1 BIOSPECIMEN|ID                    Result: ❌
+
+Error Reasons:
+	('PARTICIPANT|ID', 'P11') -> []
+	('PARTICIPANT|ID', 'P13') -> []
+
+Locations:
+	('PARTICIPANT|ID', 'P11') found in ['DATASET1/pf.csv']
+	('PARTICIPANT|ID', 'P13') found in ['DATASET1/pf.csv']
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test: Each BIOSPECIMEN|ID links to exactly 1 PARTICIPANT|ID                     Result: ❌
+
 Error Reasons:
 	('BIOSPECIMEN|ID', 'S2') -> [('PARTICIPANT|ID', 'P1'), ('PARTICIPANT|ID', 'P2')]
 	('BIOSPECIMEN|ID', 'S8') -> []
+
 Locations:
 	('BIOSPECIMEN|ID', 'S2') found in ['DATASET1/sfp2.csv', 'DATASET1/spf.csv']
 	('BIOSPECIMEN|ID', 'S8') found in ['DATASET1/spf.csv']
 	('PARTICIPANT|ID', 'P1') found in ['DATASET1/spf.csv']
 	('PARTICIPANT|ID', 'P2') found in ['DATASET1/sfp2.csv']
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Participant has at least 1 Biospecimen                     Result: ❌
+Test: Each BIOSPECIMEN|ID links to at least 1 GENOMIC_FILE|URL_LIST             Result: ❌
+
 Error Reasons:
-	('PARTICIPANT|ID', 'P11') -> []
-	('PARTICIPANT|ID', 'P13') -> []
+	('BIOSPECIMEN|ID', 'S1') -> []
+	('BIOSPECIMEN|ID', 'S2') -> []
+	('BIOSPECIMEN|ID', 'S3') -> []
+	('BIOSPECIMEN|ID', 'S4') -> []
+	('BIOSPECIMEN|ID', 'S6') -> []
+	('BIOSPECIMEN|ID', 'S8') -> []
+
 Locations:
-	('PARTICIPANT|ID', 'P11') found in ['DATASET1/pf.csv']
-	('PARTICIPANT|ID', 'P13') found in ['DATASET1/pf.csv']
+	('BIOSPECIMEN|ID', 'S1') found in ['DATASET1/spf.csv']
+	('BIOSPECIMEN|ID', 'S2') found in ['DATASET1/sfp2.csv', 'DATASET1/spf.csv']
+	('BIOSPECIMEN|ID', 'S3') found in ['DATASET1/spf.csv']
+	('BIOSPECIMEN|ID', 'S4') found in ['DATASET1/spf.csv']
+	('BIOSPECIMEN|ID', 'S6') found in ['DATASET1/spf.csv']
+	('BIOSPECIMEN|ID', 'S8') found in ['DATASET1/spf.csv']
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Participant has at least 1 Family                          Result: ❌
-Error Reasons:
-	('PARTICIPANT|ID', 'P11') -> []
-Locations:
-	('PARTICIPANT|ID', 'P11') found in ['DATASET1/pf.csv']
+Test: Each GENOMIC_FILE|URL_LIST links to exactly 1 BIOSPECIMEN|ID              Result: ✅
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Test: Each Family has at least 1 Participant                          Result: ❌
-Error Reasons:
-	('FAMILY|ID', 'F12') -> []
-Locations:
-	('FAMILY|ID', 'F12') found in ['DATASET1/pf.csv']
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Test: Each Source Genomic File comes from 1 Biospecimen               Result: ✅
-
-=================================== DATASET2 ===================================
+==========================================================================================
+======================================== DATASET2 ========================================
+==========================================================================================
 
 DATASET2/npg.csv
   GENOMIC_FILE|URL_LIST PARTICIPANT|ID
@@ -109,25 +141,31 @@ DATASET2/nfg.csv
 1        ['foo/s9.txt']        F9
 2       ['foo/s11.txt']       F11
 
-Test: Each Biospecimen comes from 1 Participant                       Result: ✅
+Test: Each FAMILY|ID links to at least 1 PARTICIPANT|ID                         Result: ✅
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Participant has at least 1 Biospecimen                     Result: ✅
+Test: Each PARTICIPANT|ID links to at least 1 FAMILY|ID                         Result: ✅
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Participant has at least 1 Family                          Result: ✅
+Test: Each PARTICIPANT|ID links to at least 1 BIOSPECIMEN|ID                    Result: ✅
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Family has at least 1 Participant                          Result: ✅
+Test: Each BIOSPECIMEN|ID links to exactly 1 PARTICIPANT|ID                     Result: ✅
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Source Genomic File comes from 1 Biospecimen               Result: ✅
+Test: Each BIOSPECIMEN|ID links to at least 1 GENOMIC_FILE|URL_LIST             Result: ✅
 
-=================================== DATASET3 ===================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test: Each GENOMIC_FILE|URL_LIST links to exactly 1 BIOSPECIMEN|ID              Result: ✅
+
+==========================================================================================
+======================================== DATASET3 ========================================
+==========================================================================================
 
 DATASET3/pb.csv
   BIOSPECIMEN|ID PARTICIPANT|ID
@@ -139,29 +177,43 @@ DATASET3/fp.csv
 1             P1        F2
 2             P2        F2
 
-Test: Each Biospecimen comes from 1 Participant                       Result: ✅
+Test: Each FAMILY|ID links to at least 1 PARTICIPANT|ID                         Result: ✅
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Participant has at least 1 Biospecimen                     Result: ❌
+Test: Each PARTICIPANT|ID links to at least 1 FAMILY|ID                         Result: ✅
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test: Each PARTICIPANT|ID links to at least 1 BIOSPECIMEN|ID                    Result: ❌
+
 Error Reasons:
 	('PARTICIPANT|ID', 'P2') -> []
+
 Locations:
 	('PARTICIPANT|ID', 'P2') found in ['DATASET3/fp.csv']
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Participant has at least 1 Family                          Result: ✅
+Test: Each BIOSPECIMEN|ID links to exactly 1 PARTICIPANT|ID                     Result: ✅
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Family has at least 1 Participant                          Result: ✅
+Test: Each BIOSPECIMEN|ID links to at least 1 GENOMIC_FILE|URL_LIST             Result: ❌
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Error Reasons:
+	('BIOSPECIMEN|ID', 'B1') -> []
 
-Test: Each Source Genomic File comes from 1 Biospecimen               Result: ✅
+Locations:
+	('BIOSPECIMEN|ID', 'B1') found in ['DATASET3/pb.csv']
 
-=================================== DATASET4 ===================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test: Each GENOMIC_FILE|URL_LIST links to exactly 1 BIOSPECIMEN|ID              Result: ⛔
+
+==========================================================================================
+======================================== DATASET4 ========================================
+==========================================================================================
 
 DATASET4/fb.csv
   BIOSPECIMEN|ID FAMILY|ID
@@ -173,31 +225,45 @@ DATASET4/fp.csv
 1             P1        F2
 2             P2        F2
 
-Test: Each Biospecimen comes from 1 Participant                       Result: ❌
+Test: Each FAMILY|ID links to at least 1 PARTICIPANT|ID                         Result: ✅
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test: Each PARTICIPANT|ID links to at least 1 FAMILY|ID                         Result: ✅
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test: Each PARTICIPANT|ID links to at least 1 BIOSPECIMEN|ID                    Result: ✅
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test: Each BIOSPECIMEN|ID links to exactly 1 PARTICIPANT|ID                     Result: ❌
+
 Error Reasons:
-	('BIOSPECIMEN|ID', 'B1') -> [('PARTICIPANT|ID', 'P2'), ('PARTICIPANT|ID', 'P1')]
+	('BIOSPECIMEN|ID', 'B1') -> [('PARTICIPANT|ID', 'P1'), ('PARTICIPANT|ID', 'P2')]
+
 Locations:
 	('BIOSPECIMEN|ID', 'B1') found in ['DATASET4/fb.csv']
 	('PARTICIPANT|ID', 'P1') found in ['DATASET4/fp.csv']
 	('PARTICIPANT|ID', 'P2') found in ['DATASET4/fp.csv']
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Participant has at least 1 Biospecimen                     Result: ✅
+Test: Each BIOSPECIMEN|ID links to at least 1 GENOMIC_FILE|URL_LIST             Result: ❌
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Error Reasons:
+	('BIOSPECIMEN|ID', 'B1') -> []
 
-Test: Each Participant has at least 1 Family                          Result: ✅
+Locations:
+	('BIOSPECIMEN|ID', 'B1') found in ['DATASET4/fb.csv']
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Family has at least 1 Participant                          Result: ✅
+Test: Each GENOMIC_FILE|URL_LIST links to exactly 1 BIOSPECIMEN|ID              Result: ⛔
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Test: Each Source Genomic File comes from 1 Biospecimen               Result: ✅
-
-=================================== DATASET5 ===================================
+==========================================================================================
+======================================== DATASET5 ========================================
+==========================================================================================
 
 DATASET5/pb.csv
   BIOSPECIMEN|ID PARTICIPANT|ID
@@ -212,21 +278,33 @@ DATASET5/fp.csv
   PARTICIPANT|ID FAMILY|ID
 0             P1        F2
 
-Test: Each Biospecimen comes from 1 Participant                       Result: ✅
+Test: Each FAMILY|ID links to at least 1 PARTICIPANT|ID                         Result: ✅
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Participant has at least 1 Biospecimen                     Result: ✅
+Test: Each PARTICIPANT|ID links to at least 1 FAMILY|ID                         Result: ✅
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Participant has at least 1 Family                          Result: ✅
+Test: Each PARTICIPANT|ID links to at least 1 BIOSPECIMEN|ID                    Result: ✅
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Family has at least 1 Participant                          Result: ✅
+Test: Each BIOSPECIMEN|ID links to exactly 1 PARTICIPANT|ID                     Result: ✅
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Test: Each Source Genomic File comes from 1 Biospecimen               Result: ✅
+Test: Each BIOSPECIMEN|ID links to at least 1 GENOMIC_FILE|URL_LIST             Result: ❌
+
+Error Reasons:
+	('BIOSPECIMEN|ID', 'B1') -> []
+	('BIOSPECIMEN|ID', 'B2') -> []
+
+Locations:
+	('BIOSPECIMEN|ID', 'B1') found in ['DATASET5/pb.csv', 'DATASET5/fb.csv']
+	('BIOSPECIMEN|ID', 'B2') found in ['DATASET5/fb.csv']
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test: Each GENOMIC_FILE|URL_LIST links to exactly 1 BIOSPECIMEN|ID              Result: ⛔
 ```
