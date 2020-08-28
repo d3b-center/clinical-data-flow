@@ -9,15 +9,19 @@ Prototyping for validating relational data based on a set of rules.
 
 Both notebooks output the same validation report
 
-# Sample Validation Report
+# 📓 Data Validation Report for `SD_FOOBAR`
 
-### \* View data in a connected [graph](graph.svg)
+## Unique Entity Counts
 
-## Count Tests
-| result   | name                                   | details   |
-|:---------|:---------------------------------------|:----------|
-| ✅       | Expected Participant Unique Count = 10 |           |
-| ✅       | Expected Specimen Unique Count = 12    |           |
+| Type        | Count |
+|:------------|:------|
+| Family      |  1000 |
+| Participant |  2208 |
+| Biospecimen |  2209 |
+| Sequence Manifest File |  2209 |
+| S3 File Object |  2210 |
+| Sequencing Experiment |  2210 |
+​
 
 ## Relation Tests
 | result   | name                                                          | details                                                                             | error_locations                       |
@@ -39,6 +43,17 @@ Both notebooks output the same validation report
 | result   | name                                     | details                                      | error_locations   |
 |:---------|:-----------------------------------------|:---------------------------------------------|:------------------|
 | ❌       | A Participant must have exactly 1 gender | 0 Participant have linked PARTICIPANT|GENDER |                   |
+
+## Files Evaluated
+
+| Files       |
+|:------------|
+| pf.csv      |
+| pg.csv      |
+| spf2.csv    |
+| sg.csv      |
+| sp.csv      |
+| spf.csv     |
 
 ## Test Definitions
 | test_type         | name                                                          | description                                                                                                                            |
