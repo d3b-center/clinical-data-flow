@@ -8,18 +8,18 @@ from relations import HIERARCHY, REVERSE_TESTS, TESTS
 NA = ""
 
 
-def build_graph(dict_of_dataframes, implicit=True):
-    g = Graph()
+def build_graph(dict_of_dataframes, include_implicit=True):
+    graph = Graph()
     edges = set()
 
-    ######## Add IDs to the graph and record colinear pairs as edges ########
+    ######## Add nodes and record colinear pairs as potential edges ########
 
     for df in dict_of_dataframes.values():
         for row in df.to_dict(orient="records"):
             nodes = [(k, v) for k, v in row.items() if v != NA]
             for c, n in nodes:
-                g.add_node((c, n))
-                g.add_edge((c, n), c)  # relate each ID to its type
+                graph.add_node((c, n))
+                graph.add_edge((c, n), c)  # relate each node to its type
             for combo in itertools.combinations(nodes, 2):
                 edges.add(combo)
 
@@ -28,9 +28,9 @@ def build_graph(dict_of_dataframes, implicit=True):
     remaining_edges = set()
     for a, b in edges:
         if b[0] in HIERARCHY.nodes(a[0]):
-            g.add_edge(a, b)
+            graph.add_edge(a, b)
         elif a[0] in HIERARCHY.nodes(b[0]):
-            g.add_edge(b, a)
+            graph.add_edge(b, a)
         else:
             if HIERARCHY.is_connected(a[0], b[0]):
                 remaining_edges.add((a, b))
@@ -39,12 +39,12 @@ def build_graph(dict_of_dataframes, implicit=True):
 
     def prune_unneeded(edges):
         # (A -> B) + (B -> C) doesn't also need (A -> C)
-        g.is_connected.cache_clear()
-        return [e for e in edges if not g.is_connected(e[0], e[1])]
+        graph.is_connected.cache_clear()
+        return [e for e in edges if not graph.is_connected(e[0], e[1])]
 
     edges = prune_unneeded(remaining_edges)
 
-    if implicit:
+    if include_implicit:
         ######################################################################
         ########  Code in here is for indirectly implied connections  ########
         ######################################################################
@@ -57,14 +57,15 @@ def build_graph(dict_of_dataframes, implicit=True):
                 a, b = e
                 new_dests = [
                     n
-                    for n in g.nodes(to_node=b)
+                    for n in graph.nodes(to_node=b)
                     if HIERARCHY.is_connected(a[0], n[0])
                 ]
                 if new_dests:
                     for n in new_dests:
                         if HIERARCHY.edge(a[0], n[0]):
-                            g.add_edge(a, n)
+                            graph.add_edge(a, n)
                         else:
+                            # We can track movements here for detailed error output
                             new_edges.add((a, n))
                 else:
                     new_edges.add(e)
@@ -78,20 +79,21 @@ def build_graph(dict_of_dataframes, implicit=True):
                 a, b = e
                 new_dests = [
                     n
-                    for n in g.nodes(a)
+                    for n in graph.nodes(a)
                     if (n != a[0]) and HIERARCHY.is_connected(n[0], b[0])
                 ]
                 if new_dests:
                     for n in new_dests:
                         if HIERARCHY.edge(n[0], b[0]):
-                            g.add_edge(n, b)
+                            graph.add_edge(n, b)
                         else:
+                            # We can track movements here for detailed error output
                             new_edges.add((n, b))
                 else:
                     new_edges.add(e)
             return new_edges
 
-        ###### Shake the graph back and forth ######
+        ###### Shake the graph back and forth until placements stabilize ######
 
         def try_until_stable(f, edges):
             prev_edges = edges
@@ -111,69 +113,70 @@ def build_graph(dict_of_dataframes, implicit=True):
     ######## Throw remaining edges into the graph ########
 
     for a, b in edges:
-        g.add_edge(a, b)
+        graph.add_edge(a, b)
 
-    return g
-
-
-def report_type_counts(g):
-    return {c: len(g.nodes(to_node=c)) for c in reversed(HIERARCHY.nodes())}
+    return graph
 
 
-def validate_graph(g, dict_of_dataframes):
-    assert isinstance(g, Graph)
-    assert len(g.nodes()) > 0
+def get_type_counts(graph):
+    return {c: len(graph.nodes(to_node=c)) for c in reversed(HIERARCHY.nodes())}
 
-    def find_in_files(nodes):
-        found = defaultdict(list)
-        for n in nodes:
-            for f, df in dict_of_dataframes.items():
-                if (n[0] in df) and (n[1] in df[n[0]].values):
-                    found[n].append(f)
-        return [f"{k} found in {v}" for k, v in found.items()]
 
-    def message_from_result(description, valid, errors):
-        emoji = "⛔" if not valid else "❌" if errors else "✅"
-        message = {"Test": description, "Result": emoji}
-        details = []
-        nodes = set()
-        for e in errors:
-            details.append(f"{e['from']} -> {e['to']}")
-            nodes.add(e["from"])
-            nodes.update(e["to"])
-        if errors:
-            message["Error Reasons"] = details
-            message["Locations"] = find_in_files(nodes)
-        return message
+def validate_graph(graph, dict_of_dataframes):
+    assert isinstance(graph, Graph)
+    assert len(graph.nodes()) > 0
+
+    membership_lookup = {
+        f: {col: set(df[col].values)}
+        for f, df in dict_of_dataframes.items()
+        for col in df.columns
+    }
+    dict_of_dataframes = None
+
+    def find_in_files(node):
+        found = []
+        for f, ml in membership_lookup.items():
+            if (node[0] in ml) and (node[1] in ml[node[0]]):
+                found.append(f)
+        return found
+
+    def format_result(desc, valid, errors):
+        return {"description": desc, "is_applicable": valid, "errors": errors}
 
     def cardinality(typeA, typeB, relation):
         # Tests cardinality of connections between typeA and typeB
         eval_text, eval_func = relation
-        description = f"Each {typeA} links to {eval_text} 1 {typeB}"
         errors = []
-        nodes_to_check = g.nodes(to_node=typeA)
-        for n in nodes_to_check:
+        A_nodes = graph.nodes(to_node=typeA)
+        for n in A_nodes:
             from_n = n if typeB in HIERARCHY.nodes(typeA) else None
-            to_n = n if not from_n else None
-            links = [c for c in g.nodes(from_n, to_n) if c[0] == typeB]
+            to_n = None if from_n else n
+            links = [c for c in graph.nodes(from_n, to_n) if c[0] == typeB]
             if not eval_func(len(links)):
-                errors.append({"from": n, "to": links})
+                locs = {m: find_in_files(m) for m in ([n] + links)}
+                errors.append({"from": n, "to": links, "locations": locs})
 
-        return message_from_result(description, bool(nodes_to_check), errors)
+        description = f"Each {typeA} links to {eval_text} 1 {typeB}"
+        return format_result(description, bool(A_nodes), errors)
 
     def gaps():
-        # Tests that A always -> B always -> C and never A -> C without a B
-        description = "All resolved links are direct without gaps in hierarchy"
+        # Tests that A always -> B always -> C and not A -> C without a B
         errors = []
-        for n in g.nodes():
-            links = [m for m in g.nodes(n) if n[0] != m]
-            links = [m for m in links if m[0] not in HIERARCHY.nodes(n[0])]
+        for n in graph.nodes():
+            links = [
+                m
+                for m in graph.nodes(from_node=n)
+                if (n[0] != m) and (m[0] not in HIERARCHY.nodes(from_node=n[0]))
+            ]
             if links:
-                errors.append({"from": n, "to": links})
-        return message_from_result(description, bool(g.nodes()), errors)
+                locs = {m: find_in_files(m) for m in ([n] + links)}
+                errors.append({"from": n, "to": links, "locations": locs})
 
-    m1 = [cardinality(a, b, TESTS[r]) for a, b, r in HIERARCHY.edges()]
-    m2 = [cardinality(b, a, REVERSE_TESTS[r]) for a, b, r in HIERARCHY.edges()]
-    m3 = [gaps()]
+        description = "All resolved links are direct without gaps in hierarchy"
+        return format_result(description, bool(graph.nodes()), errors)
 
-    return list(reversed(list(itertools.chain.from_iterable(zip(m1, m2))))) + m3
+    cr1 = [cardinality(a, b, TESTS[r]) for a, b, r in HIERARCHY.edges()]
+    cr2 = [cardinality(b, a, REVERSE_TESTS[r]) for a, b, r in HIERARCHY.edges()]
+    cardinality_results = list(reversed([x for y in zip(cr1, cr2) for x in y]))
+
+    return cardinality_results + [gaps()]
