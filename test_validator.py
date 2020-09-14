@@ -14,13 +14,12 @@ def draw_graph(name, graph):
         if e[0][0] != e[1]:
             G.add_edge(e[0], e[1])
 
-    fname = f"{name}.png"
+    fname = f"{name}.svg"
     try:
         os.remove(fname)
     except OSError:
         pass
-
-    G.draw(fname, format="png", prog="dot")
+    G.draw(fname, format="svg", prog="dot")
     print(fname)
     print(f'\n!["Generated Graph Image"]({fname})\n')
 
@@ -34,7 +33,7 @@ def message_from_result(result, width):
     message = [f"{name}{' ' * (width - 1 - len(name) - len(status))}{status}"]
     if errors:
         parts = {}
-        parts["Error Reasons"] = [f"{e['from']} -> {e['to']}" for e in errors]
+        parts["Error Reasons"] = [f"{e['from']} -> {sorted(e['to'])}" for e in errors]
         parts["Locations"] = [
             f"{k} is in {v}" for e in errors for k, v in e["locations"].items()
         ]
@@ -46,12 +45,18 @@ def message_from_result(result, width):
     return "\n".join(message)
 
 
-for dir in sorted(glob.glob("DATASET*")):
+# DIRS = sorted(glob.glob("DATASET*"))
+DIRS = [
+    "kf_ingest_packages/packages/SD_BHJXBDQK/output/ExtractStage"
+]
+
+for dir in DIRS:
     df_dict = {}
     for f in glob.glob(f"{dir}/*"):
         try:
-            df_dict[f] = read_df(f, encoding="utf-8-sig")
-            df_dict[f] = df_dict[f].filter(HIERARCHY.nodes()).replace("NA", NA)
+            fname = os.path.basename(f)
+            df_dict[fname] = read_df(f, encoding="utf-8-sig")
+            df_dict[fname] = df_dict[fname].filter(HIERARCHY.nodes()).replace("NA", NA)
         except:
             continue
 
@@ -64,26 +69,29 @@ for dir in sorted(glob.glob("DATASET*")):
         print(divider)
         print(f"{'=' * first_bar_width} {spaced_dir} {'=' * second_bar_width}")
         print(f"{divider}\n")
+        print("Loaded files:")
+        for f in df_dict:
+            print(os.path.join(dir,f))
+        print()
 
-        input_graph = build_graph(df_dict, include_implicit=False)
-        graph = build_graph(df_dict)
+        input_graph, ignored_input_edges = build_graph(df_dict, include_implicit=False)
+        graph, ignored_edges = build_graph(df_dict)
 
         count_block = ["NODE TYPE COUNTS:"]
         counts = get_type_counts(graph)
         colwidth = len(max(counts.keys(), key=len))
         count_block += [f"\t{k:<{colwidth}} : {v}" for k, v in counts.items()]
 
-        results = ["\n".join(count_block)]
+        print("\n".join(count_block))
 
         for r in validate_graph(graph, df_dict):
-            results.append(message_from_result(r, len(divider)))
-
-        print(f"\n\n{'~' * len(divider)}\n\n".join(results))
+            print(f"\n{'~' * len(divider)}\n")
+            print(message_from_result(r, len(divider)))
 
         print("```")
-        print("\n### Input and output images...\n")
-        draw_graph(f"{dir}/input", input_graph)
-        draw_graph(f"{dir}/output", graph)
+        # print("\n### Input and output images...\n")
+        # draw_graph(f"{dir}/input", input_graph)
+        # draw_graph(f"{dir}/output", graph)
     else:
         print(f"{dir} not found or contains no data files.")
 

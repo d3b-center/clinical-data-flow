@@ -26,6 +26,8 @@ def build_graph(dict_of_dataframes, include_implicit=True):
     ######## Add explicit (direct hierarchy) connections to the graph ########
 
     remaining_edges = set()
+    ignored_edges = set()
+
     for a, b in edges:
         if b[0] in HIERARCHY.nodes(a[0]):
             graph.add_edge(a, b)
@@ -34,8 +36,10 @@ def build_graph(dict_of_dataframes, include_implicit=True):
         else:
             if HIERARCHY.is_connected(a[0], b[0]):
                 remaining_edges.add((a, b))
-            else:
+            elif HIERARCHY.is_connected(b[0], a[0]):
                 remaining_edges.add((b, a))
+            else:
+                ignored_edges.add((a, b))
 
     def prune_unneeded(edges):
         # (A -> B) + (B -> C) doesn't also need (A -> C)
@@ -112,10 +116,11 @@ def build_graph(dict_of_dataframes, include_implicit=True):
 
     ######## Throw remaining edges into the graph ########
 
-    for a, b in edges:
+    # TBD: REPLACE THIS WITH LEAST COMMON ANCESTOR DISCOVERY?
+    for e in edges:
         graph.add_edge(a, b)
 
-    return graph
+    return graph, ignored_edges
 
 
 def get_type_counts(graph):
@@ -127,9 +132,8 @@ def validate_graph(graph, dict_of_dataframes):
     assert len(graph.nodes()) > 0
 
     membership_lookup = {
-        f: {col: set(df[col].values)}
+        f: {col: set(df[col].values) for col in df.columns}
         for f, df in dict_of_dataframes.items()
-        for col in df.columns
     }
     dict_of_dataframes = None
 
@@ -156,7 +160,7 @@ def validate_graph(graph, dict_of_dataframes):
                 locs = {m: find_in_files(m) for m in ([n] + links)}
                 errors.append({"from": n, "to": links, "locations": locs})
 
-        description = f"Each {typeA} links to {eval_text} 1 {typeB}"
+        description = f"Each {typeA} links to {eval_text} {typeB}"
         return format_result(description, bool(A_nodes), errors)
 
     def gaps():
@@ -175,8 +179,10 @@ def validate_graph(graph, dict_of_dataframes):
         description = "All resolved links are direct without gaps in hierarchy"
         return format_result(description, bool(graph.nodes()), errors)
 
-    cr1 = [cardinality(a, b, TESTS[r]) for a, b, r in HIERARCHY.edges()]
-    cr2 = [cardinality(b, a, REVERSE_TESTS[r]) for a, b, r in HIERARCHY.edges()]
-    cardinality_results = list(reversed([x for y in zip(cr1, cr2) for x in y]))
+    for a, b, r in HIERARCHY.edges():
+        if r in TESTS:
+            yield cardinality(a, b, TESTS[r])
+        if r in REVERSE_TESTS:
+            yield cardinality(b, a, REVERSE_TESTS[r])
 
-    return cardinality_results + [gaps()]
+    yield gaps()
