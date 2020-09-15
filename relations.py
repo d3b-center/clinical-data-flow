@@ -1,7 +1,7 @@
 from graph import Graph  # https://github.com/root-11/graph-theory
 from kf_lib_data_ingest.common.concept_schema import CONCEPT
 
-(
+(   # Just an enumeration of all the cardinality terms
     ONE,
     MANY,
     ONEZERO,
@@ -28,6 +28,7 @@ RELATIONS = {
     ONE: ("exactly 1", lambda x: x == 1),
     MANY: ("at least 1", lambda x: x >= 1),
     ONEZERO: ("up to 1", lambda x: x <= 1),
+    # There's no test for ANY, because everything would just pass
 }
 
 TESTS = {
@@ -50,21 +51,17 @@ REVERSE_TESTS = {
     MANY_ONEZERO: RELATIONS[MANY],
     ONEZERO_ONE: RELATIONS[ONEZERO],
     ONEZERO_MANY: RELATIONS[ONEZERO],
+    MANY_ANY: RELATIONS[MANY],
 }
 
-H = Graph()
-HIERARCHY = H
+HIERARCHY = Graph()
+H = HIERARCHY
 
-def is_identifier(x):
-    return x.endswith("|ID")
-
-########### HIERARCHY Edges point ------> this way, upwards toward the study ID
+########### HIERARCHY Edges point --> upwards toward the study root
 
 ### identifiers
 
-# was MANY_MANY
-H.add_edge(CONCEPT.PARTICIPANT.ID, CONCEPT.FAMILY.ID, MANY_ONEZERO)
-# was BIOSPECIMEN.ID to PARTICIPANT.ID
+H.add_edge(CONCEPT.PARTICIPANT.ID, CONCEPT.FAMILY.ID, MANY_ANY)
 H.add_edge(CONCEPT.BIOSPECIMEN_GROUP.ID, CONCEPT.PARTICIPANT.ID, MANY_ONE)
 H.add_edge(CONCEPT.BIOSPECIMEN.ID, CONCEPT.BIOSPECIMEN_GROUP.ID, MANY_ONE)
 H.add_edge(CONCEPT.SEQUENCING.ID, CONCEPT.BIOSPECIMEN.ID, ONE_ONE)

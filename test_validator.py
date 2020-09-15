@@ -74,8 +74,8 @@ for dir in DIRS:
             print(os.path.join(dir,f))
         print()
 
-        input_graph, ignored_input_edges = build_graph(df_dict, include_implicit=False)
-        graph, ignored_edges = build_graph(df_dict)
+        input_graph = build_graph(df_dict, include_implicit=False)
+        graph = build_graph(df_dict)
 
         count_block = ["NODE TYPE COUNTS:"]
         counts = get_type_counts(graph)
