@@ -4,6 +4,7 @@ from collections import defaultdict
 from graph import Graph  # https://github.com/root-11/graph-theory
 
 from relations import HIERARCHY, REVERSE_TESTS, TESTS
+from kf_lib_data_ingest.validation.values import INPUT_VALIDATION
 
 NA = ""
 
@@ -21,7 +22,7 @@ def validate_data(dict_of_dataframes, include_implicit=True):
 
 def build_graph(dict_of_dataframes, include_implicit=True):
     """Construct a graph that represents the study data. Nodes are cells in the
-    data, edges are relationships between cells across rows according to the 
+    data, edges are relationships between cells across rows according to the
     designated relationship hierarchy.
 
     :param dict_of_dataframes: dict with filename keys and dataframe values
@@ -190,7 +191,6 @@ def validate_graph(graph, dict_of_dataframes):
         f: {col: set(df[col].values) for col in df.columns}
         for f, df in dict_of_dataframes.items()
     }
-    dict_of_dataframes = None
 
     def find_in_files(node):
         """Find which files a given node came from.
@@ -204,8 +204,13 @@ def validate_graph(graph, dict_of_dataframes):
                 found.append(f)
         return found
 
-    def format_result(desc, valid, errors):
-        return {"description": desc, "is_applicable": valid, "errors": errors}
+    def format_result(type, desc, valid, errors):
+        return {
+            "type": type,
+            "description": desc,
+            "is_applicable": valid,
+            "errors": errors,
+        }
 
     def cardinality(typeA, typeB, relation):
         """Tests cardinality of connections between typeA and typeB.
@@ -228,7 +233,7 @@ def validate_graph(graph, dict_of_dataframes):
                 errors.append({"from": n, "to": links, "locations": locs})
 
         description = f"Each {typeA} links to {eval_text} {typeB}"
-        return format_result(description, bool(A_nodes), errors)
+        return format_result("relationship", description, bool(A_nodes), errors)
 
     def gaps():
         """Tests, according to the relationship hierarchy, that A always -> B
@@ -248,7 +253,9 @@ def validate_graph(graph, dict_of_dataframes):
                 errors.append({"from": n, "to": links, "locations": locs})
 
         description = "All resolved links are direct without gaps in hierarchy"
-        return format_result(description, bool(graph.nodes()), errors)
+        return format_result(
+            "relationship", description, bool(graph.nodes()), errors
+        )
 
     for a, b, r in HIERARCHY.edges():
         if r in TESTS:
@@ -257,3 +264,21 @@ def validate_graph(graph, dict_of_dataframes):
             yield cardinality(b, a, REVERSE_TESTS[r])
 
     yield gaps()
+
+    def value_check(type, eval_func):
+        errors = {}
+        valid = False
+        for fname, df in dict_of_dataframes.items():
+            bad_values = []
+            if type in df:
+                valid = True
+                bad_values = list(
+                    df[type][df[type].apply(eval_func)==False].unique()
+                )
+                if bad_values:
+                    errors[fname] = bad_values
+        return valid, errors
+
+    for type, (description, eval_func) in INPUT_VALIDATION.items():
+        valid, errors = value_check(type, eval_func)
+        yield format_result("attribute", f"{type} {description}", valid, errors)

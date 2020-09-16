@@ -29,25 +29,33 @@ def message_from_result(result, width):
     valid = result["is_applicable"]
     errors = result["errors"]
     name = "Test: " + description
-    status = "Result: " + ("⛔" if not valid else "❌" if errors else "✅")
-    message = [f"{name}{' ' * (width - 1 - len(name) - len(status))}{status}"]
+    status = "⛔" if not valid else "❌" if errors else "✅"
+    message = [f"{status} {name}"]
     if errors:
         parts = {}
-        parts["Error Reasons"] = [f"{e['from']} -> {sorted(e['to'])}" for e in errors]
-        parts["Locations"] = [
-            f"{k} is in {v}" for e in errors for k, v in e["locations"].items()
-        ]
-        for k, v in parts.items():
-            message.append(f"\n{k}:")
-            for vx in sorted(v):
-                message.append(f"\t{vx}")
+        if result["type"] == "relationship":
+            parts["Error Reasons"] = [
+                f"{e['from']} -> {sorted(e['to'])}" for e in errors
+            ]
+            parts["Locations"] = [
+                f"{k} is in {v}" for e in errors for k, v in e["locations"].items()
+            ]
+            for k, v in parts.items():
+                message.append(f"\n{k}:")
+                for vx in sorted(v):
+                    message.append(f"\t{vx}")
+        elif result["type"] == "attribute":
+            for k, v in errors.items():
+                message.append(f"\n{k} contains bad values:")
+                for vx in sorted(v):
+                    message.append(f"\t\"{vx}\"")
 
     return "\n".join(message)
 
 
 # DIRS = sorted(glob.glob("DATASET*"))
 DIRS = [
-    "kf_ingest_packages/packages/SD_BHJXBDQK/output/ExtractStage"
+    "/Users/kelmana/Documents/kids-first/kf-ingest-packages/kf_ingest_packages/packages/SD_BHJXBDQK/output/ExtractStage"
 ]
 
 for dir in DIRS:
@@ -56,7 +64,9 @@ for dir in DIRS:
         try:
             fname = os.path.basename(f)
             df_dict[fname] = read_df(f, encoding="utf-8-sig")
-            df_dict[fname] = df_dict[fname].filter(HIERARCHY.nodes()).replace("NA", NA)
+            df_dict[fname] = (
+                df_dict[fname].filter(HIERARCHY.nodes()).replace("NA", NA)
+            )
         except:
             continue
 
@@ -71,7 +81,7 @@ for dir in DIRS:
         print(f"{divider}\n")
         print("Loaded files:")
         for f in df_dict:
-            print(os.path.join(dir,f))
+            print(os.path.join(dir, f))
         print()
 
         input_graph = build_graph(df_dict, include_implicit=False)
